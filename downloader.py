@@ -192,8 +192,8 @@ def dowloadfolder(foldname, prefix=''):
     if albumpart=='':
         print 'Null album - setting variable to 0'
         albumpart = '00'
-    if numimages > 0:
-        print 'We downloaded at least 1 photos, increment folder'
+    if numimages > 1:
+        print 'We downloaded at least 2 photos, increment folder'
         updateset(currentalbum,albumpart)
 
 
@@ -349,6 +349,65 @@ def catparse(url, debug='no'):
                     temp.append(split[i])
     folderparse(temp)
 
+
+def smartfoldercompletion():
+    #Lets define a set of rules before prompting a completion force
+    print 'Starting Smart folder completion'
+    
+    #Pull the current year and month as strings from the system clock
+    today = date.today()
+    #month = today.strftime('%m')
+    month = today.month
+    year = today.year
+
+    if month < 10:
+        month='0'+str(month)
+    
+    
+    d.execute("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' and year is  '"+str(year)+"' and title NOT LIKE '"+str(month)+"%'")
+    out= d.fetchone()
+    if out[0] == 0:
+        print 'No incomplete sets sets found that are from this year but not this month'
+    else:
+        print 'Found '+str(out[0])+' sets marked incomplete that are from this year but not this month'
+        sql="SELECT year,title FROM sets WHERE status is not 'cbz' and year is  '"+str(year)+"' and title NOT LIKE '"+str(month)+"%' ORDER BY year DESC, title ASC"
+        print sql
+        for row in c.execute(sql):
+            cyear = row[0]
+            ctitle = row[1]
+            print 'Year: ' + cyear + ' Title: ' +ctitle
+            #print "Status: " +row[3] +" Year: "+row[0] + " Title: " + row[1]
+
+
+
+
+    d.execute("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' and year is not '"+str(year)+"'")
+    out= d.fetchone()
+    if out[0] == 0:
+        print 'No incomplete sets found that are not from this year'
+    else:
+
+        print 'Found '+str(out[0])+' sets marked incomplete that are not from this year'
+        sql="SELECT year,title FROM sets WHERE status is not 'cbz' and year is not '"+str(year)+"' ORDER BY year DESC, title ASC"
+        print sql
+        for row in c.execute(sql):
+            cyear = row[0]
+            ctitle = row[1]
+            print 'Year: ' + cyear + ' Title: ' +ctitle
+            d.execute("UPDATE sets SET status='done' WHERE title='"+ctitle+"'")
+            conn.commit()
+
+
+
+def oldcode():
+    ## Handling sets that don't match the 5 folder trend
+    print 'Sometimes folders have less than 5 folders, do you want to force sets with only 4 folders to archive?[y/N]'
+    input = raw_input()
+    if input == 'y':
+        d.execute("UPDATE sets SET status='done' WHERE status='04'")
+        conn.commit()
+        docompress()
+
 ############################ Start of Process ############################
 
 print 'Beginning Scrape Process'
@@ -362,7 +421,7 @@ begin('http://members.latexlair.com/members.html')
 
 
 ## catparse works for the bulk category pages format is (url, debug), only new galleries
-#catparse('http://members.latexlair.com/galleries-heavyrubber.html', 'yes')
+catparse('http://members.latexlair.com/galleries-heavyrubber.html')
 #catparse('http://members.latexlair.com/galleries-solo.html', 'yes')
 #catparse('http://members.latexlair.com/galleries-catsuits.html', 'yes')
 #catparse('http://members.latexlair.com/galleries-blonde.html', 'yes')
@@ -396,14 +455,7 @@ if out[0] != 0:
         print "Status: " +row[3] +" Year: "+row[0] + " Title: " + row[1]
 
     print '--------------------------------'
-    ## Handling sets that don't match the 5 folder trend
-    print 'Sometimes folders have less than 5 folders, do you want to force sets with only 4 folders to archive?[y/N]'
-    input = raw_input()
-    if input == 'y':
-        d.execute("UPDATE sets SET status='done' WHERE status='04'")
-        conn.commit()
-        docompress()
-
+    smartfoldercompletion()
 
 
 conn.close()
