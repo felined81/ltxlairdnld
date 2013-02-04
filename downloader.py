@@ -13,7 +13,10 @@ import os
 import sqlite3
 import shutil
 import time
+import Queue
+import threading
 from datetime import date
+from datetime import datetime
 
 currentyear=str(date.today().year)
 conn = sqlite3.connect('data.db')
@@ -25,6 +28,8 @@ d = conn.cursor()
 
 #need to know what the year, title, basepath, and status of each set is. Set being the last number pulled
 c.execute("CREATE TABLE IF NOT EXISTS sets (year text, title text primary key not null, basefolder text, status text)")
+c.execute("CREATE TABLE IF NOT EXISTS oldsets (year text, title text, folder text, status text)")
+
 #going to save our settings in a table as well
 c.execute("CREATE TABLE IF NOT EXISTS settings (setting text primay key not null, value text)")
 #commit changes
@@ -69,7 +74,7 @@ rootdownloadfolder = d.fetchone()[0]
 
 
 
-
+#Define our password manager.
 password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
 top_level_url = "http://members.latexlair.com"
 password_mgr.add_password(None, top_level_url, yourusername, yourpassword)
@@ -90,8 +95,9 @@ def updateset(title,status):
     d.execute(sql)
     conn.commit()
     #print 'update finished'
-
-
+def indent(level):
+    ind = "--"
+    return ind * level
 def ensure_dir(f):
     d = os.path.dirname(f)
     if not os.path.exists(d):
@@ -105,43 +111,65 @@ def download(url, foldername, prefix=''):
     fname=rootdownloadfolder+foldername+'/'+prefix+url.split('/')[-1]
     #Check if the file is there before overwriting it
     if not os.path.exists(fname):
+        start = time.clock()
         webFile = opener.open(url)
-        
         localFile = open(fname+'-temp', 'wb')
         localFile.write(webFile.read())
         webFile.close()
         localFile.close()
         os.rename(fname+'-temp', fname)
+        end = time.clock()
+        kilobytes = os.path.getsize(fname)/1024
+        print 'Downloaded '+str(kilobytes) + 'KB in '+ str(end-start)+' seconds Rate:'+   str(kilobytes/(end-start))+'KBps'
+
 ########
-def downloadprog(url, foldername, prefix=''):
-    fname=rootdownloadfolder+foldername+'/'+prefix+url.split('/')[-1]
+#Define our dl queue#
+queue = Queue.Queue()
 
-    if not os.path.exists(fname):
-        file_name = url.split('/')[-1]
-        u = urllib2.urlopen(url)
-        f = open(file_name+'-temp', 'wb')
-        meta = u.info()
-        print u.headers.items()
-        file_size = int(meta.getheaders("Content-Length")[0])
-        print "Downloading: %s Bytes: %s" % (file_name, file_size)
-
-        file_size_dl = 0
-        block_sz = 8192
+class ThreadUrl(threading.Thread):
+    """Threaded Photo DL with authentication basic"""
+    def __init__(self, queue):
+        threading.Thread.__init__(self)
+        self.queue = queue
+    def run(self):
         while True:
-            buffer = u.read(block_sz)
-            if not buffer:
-                break
+            #grabs host from queue
+            job = self.queue.get()
             
-            file_size_dl += len(buffer)
-            f.write(buffer)
-            status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
-            status = status + chr(8)*(len(status)+1)
-            print status,
-
-        f.close()
-        os.rename(fname+'-temp', fname)
-
-
+            # first element in the list item is the url, second is the foldername, removed prefix for now. 
+            
+            
+            url = job[0]
+            foldername = job[1]
+            prefix=''
+            
+            #Cannot call DL function w/o collision here, snagged the function code and dependencies
+            password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+            top_level_url = "http://members.latexlair.com"
+            password_mgr.add_password(None, top_level_url, yourusername, yourpassword)
+            handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+            opener = urllib2.build_opener(handler)
+            urllib2.install_opener(opener)
+            
+            fname=rootdownloadfolder+foldername+'/'+prefix+url.split('/')[-1]
+            #Check if the file is there before overwriting it
+            if not os.path.exists(fname):
+                start = time.clock()
+                webFile = opener.open(url)
+                localFile = open(fname+'-temp', 'wb')
+                localFile.write(webFile.read())
+                webFile.close()
+                localFile.close()
+                os.rename(fname+'-temp', fname)
+                end = time.clock()
+                kilobytes = os.path.getsize(fname)/1024
+                print indent(1)+url
+                print indent(2)+'Downloaded '+str(kilobytes) + 'KB in '+ str(end-start)+' seconds Rate:'+   str(kilobytes/(end-start))+'KBps'
+                    
+            
+                
+            #signals to queue job is done
+            self.queue.task_done()
 #######
 def dowloadfolder(foldname, prefix=''):
     #open folder - just testing now, will convert to a loop later
@@ -187,7 +215,6 @@ def dowloadfolder(foldname, prefix=''):
         #print downloadurl
         
         download(downloadurl,foldername,prefix)
-        #downloadprog(downloadurl,foldername,prefix)
     print 'Do Database update'+ albumpart + ' ' + str(numimages)
     if albumpart=='':
         print 'Null album - setting variable to 0'
@@ -397,19 +424,111 @@ def smartfoldercompletion():
             d.execute("UPDATE sets SET status='done' WHERE title='"+ctitle+"'")
             conn.commit()
 
-
-
-def oldcode():
-    ## Handling sets that don't match the 5 folder trend
-    print 'Sometimes folders have less than 5 folders, do you want to force sets with only 4 folders to archive?[y/N]'
-    input = raw_input()
-    if input == 'y':
-        d.execute("UPDATE sets SET status='done' WHERE status='04'")
+###### Old Set Download Handling #####
+#Sorry no covers, cover handling was really weird on the old galleries. I'll see if i can dump them into each year folder.
+def addoldset(year, title, folder):
+    output=''
+    #check for record
+    d.execute("SELECT COUNT(*) FROM oldsets WHERE year is '"+year+"' and title is '"+title+"' and folder is '"+folder+"'")
+    out= d.fetchone()
+    if out[0] == 0:
+        #insert record if not exists
+        sql="INSERT INTO oldsets (year, title, folder,status) VALUES ('"+year+"','"+title+"','"+folder+"','ToDo')"
+        d.execute(sql)
         conn.commit()
-        docompress()
+        output='Added'
+    else:
+        print 'Record Exists doing nothing'
+        output='Exists'
+    
+    return output
+
+
+def checkoldset(year, title, folder):
+    output=''
+    #check for record
+    d.execute("SELECT status FROM oldsets WHERE year is '"+year+"' and title is '"+title+"' and folder is '"+folder+"'")
+    out= d.fetchone()
+    return out[0]
+
+def updateoldset(year, title, folder, status):
+    d.execute("UPDATE oldsets SET status='"+status+"'  WHERE year is '"+year+"' and title is '"+title+"' and folder is '"+folder+"'")
+    conn.commit()
+
+
+
+def oldscrape(url):
+    temp = opener.open(url).read()
+    split = temp.split('"')
+    temp = []
+    classic = []
+    for i, object in enumerate(split):
+        split2 = split[i].split('\'')
+        for n, object in enumerate(split2):
+            #print split2[n]
+            if 'http://members.latexlair.com/galleries/' in split2[n]:
+                if 'html' in split2[n]:
+                    #print split2[n]
+                    classic.append(split2[n]) #add to classic list
+    
+    
+    for i, object in enumerate(classic):
+        url=classic[i].replace('index.html','ThumbnailFrame.html')
+        
+        
+        urlbase = url.replace('ThumbnailFrame.html','')
+        urlsections = urlbase.split('/')
+        
+        albumyear = urlsections[4]
+        albumtitle = urlsections[5]
+        albumfolder = urlsections[6]
+        print albumyear, albumtitle, albumfolder
+        addoldset(albumyear, albumtitle, albumfolder) #add set to database if it isn't there already
+        
+        #check db if the current folder is done
+        
+        
+        
+        #add some workers
+
+        
+        if checkoldset(albumyear, albumtitle, albumfolder) =='ToDo':
+            temp = opener.open(url).read()
+            #print temp
+            #print url
+            split = temp.split('src=')
+            foldername = albumyear+'/'+albumtitle+'/'
+            ensure_dir(rootdownloadfolder+foldername)
+            a = datetime.now()
+            for n, object in enumerate(split):
+                if 'thumbnails' in split[n]:
+                    cur = split[n].split(' ')
+                    dlurl= urlbase+cur[0].replace('thumbnails','images').replace('"','')
+                    #print dlurl
+                    
+                    
+                    job = [dlurl,foldername]
+                    queue.put(job)
+                    #download(dlurl,foldername)
+            #Wait for queue to finish
+            queue.join()
+            #get Tfinal to get time elapsed
+            b = datetime.now()
+            c =b-a
+            print 'Queue Processed in '+str(c.seconds)+' seconds'
+            updateoldset(albumyear, albumtitle, albumfolder,'done')
+        else:
+            print albumyear+' '+ albumtitle +' '+ albumfolder +' is already done'
+
+
 
 ############################ Start of Process ############################
 
+#Start 5 worker threads for downloading#
+for i in range(5):
+    t = ThreadUrl(queue)
+    t.setDaemon(True)
+    t.start()
 print 'Beginning Scrape Process'
 
 
@@ -422,26 +541,38 @@ begin('http://members.latexlair.com/members.html')
 
 ## catparse works for the bulk category pages format is (url, debug), only new galleries
 catparse('http://members.latexlair.com/galleries-heavyrubber.html')
-#catparse('http://members.latexlair.com/galleries-solo.html', 'yes')
-#catparse('http://members.latexlair.com/galleries-catsuits.html', 'yes')
-#catparse('http://members.latexlair.com/galleries-blonde.html', 'yes')
-
-
-
-
-
-
-#add the other sections
-
-
-
+catparse('http://members.latexlair.com/galleries-solo.html')
+catparse('http://members.latexlair.com/galleries-catsuits.html')
+catparse('http://members.latexlair.com/galleries-blonde.html')
+catparse('http://members.latexlair.com/galleries-events.html')
+catparse('http://members.latexlair.com/galleries-friends.html')
 
 
 # This parses searches added to the database, and pulls down photos
 doparse()
 
+
+
+## oldscrape seeks out the old gallery format, sadly cover placement isn't automated.
+## This one is a find and grab, there is a DB table to indicate status only.
+oldscrape('http://members.latexlair.com/galleries-heavyrubber.html')
+oldscrape('http://members.latexlair.com/galleries-solo.html')
+oldscrape('http://members.latexlair.com/galleries-catsuits.html')
+oldscrape('http://members.latexlair.com/galleries-blonde.html')
+oldscrape('http://members.latexlair.com/galleries-events.html')
+oldscrape('http://members.latexlair.com/galleries-friends.html')
+
+
+
+
+
 # This compresses any finished sets to a solid CBZ file for easy cataloging and viewing 
-docompress()
+docompress() # this searches the sets table, not the oldsets table.
+
+
+# Oldsets aren't compressed by this script, since cover download automation has not yet been implemented.
+
+
 
 
 #Check for incomplete sets, print them out
@@ -455,9 +586,11 @@ if out[0] != 0:
         print "Status: " +row[3] +" Year: "+row[0] + " Title: " + row[1]
 
     print '--------------------------------'
+    #Smart folder completionuses rulesets do define finished sets. - technically this could be used instead of the 5 folder counter but it feels a little too lazy to do that.
     smartfoldercompletion()
 
 
+#Close db connection
 conn.close()
 
 
