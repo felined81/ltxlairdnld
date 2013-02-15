@@ -1,0 +1,39 @@
+<%!
+import test
+
+%>
+<head>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <script>
+        $(document).ready(function(){
+                          $("#submit").click(function(){
+                                            $.post("updatesettings",
+                                                    {
+                                                    user:$("#user").attr("value"),
+                                                   passwd:$("#passwd").attr("value"),
+                                                   dlroot:$("#dlroot").attr("value")
+                                                    
+                                                    },
+                                                   function(data,status){
+                                                   $("#out").html(data);
+                                                   
+                                                   }
+                                                    );
+                                            });
+                            });
+    </script>
+</head>
+    
+BB Downloader Web Interface<br>
+
+
+<body>
+       <table>
+           <tr><td>Username</td><td><input type=text id=user name=user value=${username}></td></tr>
+           <tr><td>Password</td><td><input type=text id=passwd name=passwd value=${password}></td></tr>
+           <tr><td>Download Root</td><td><input type=text id=dlroot name=dlroot value=${dlroot}></td></tr>
+           <tr><td><input type=submit id=submit value='Submit'></td></tr>
+       </table>
+       
+       <div id=out></div>
+</body>

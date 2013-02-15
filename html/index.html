@@ -1,0 +1,32 @@
+<%!
+import test
+
+%>
+<head>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <script>
+        $(document).ready(function(){
+                            $("#n1").click(function(){
+                                            $.post("doit",
+                                                    {
+                                                    something:$("#n1").attr("value")
+                                                    }
+                                                    );
+                                            });
+                            });
+    </script>
+</head>
+    
+BB Downloader Web Interface<br>
+
+
+<body>
+   <a href=settings>To Settings</a><br>
+   Run Parse <input id='n1'type=button value='Check'><br>
+<br>
+       current status
+<br>
+       ${status}<br>
+       
+ 
+</body>

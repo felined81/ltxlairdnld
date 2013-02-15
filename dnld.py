@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """BB Mass Download Scraper, opens member page looks for the current month's galleries and opens each one, downloading each photo automatically.
-"""
+    """
 
 #Version 3
 
@@ -19,12 +19,19 @@ from datetime import date
 from datetime import datetime
 
 currentyear=str(date.today().year)
-conn = sqlite3.connect('data.db')
 
 
-##since we do db operations to a depth of 2, two cursors are needed##
-c = conn.cursor()
-d = conn.cursor()
+def initdb():
+    global conn
+    conn = sqlite3.connect('data.db')
+    global c
+    global d
+    c = conn.cursor()
+    d = conn.cursor()
+
+
+
+initdb()
 
 #need to know what the year, title, basepath, and status of each set is. Set being the last number pulled
 c.execute("CREATE TABLE IF NOT EXISTS sets (year text, title text primary key not null, basefolder text, status text)")
@@ -44,7 +51,7 @@ if out[0] == 0:
     tempuser = raw_input()
     print 'Enter your password, followed by enter'
     temppass = raw_input()
-
+    
     d.execute("INSERT INTO settings (setting, value) VALUES ('username','"+tempuser+"')")
     d.execute("INSERT INTO settings (setting, value) VALUES ('password','"+temppass+"')")
     conn.commit()
@@ -82,7 +89,7 @@ handler = urllib2.HTTPBasicAuthHandler(password_mgr)
 opener = urllib2.build_opener(handler)
 urllib2.install_opener(opener)
 
-
+conn.close()
 #########Helper Functions########################################
 def addset(year,title,basepath):
     c.execute("INSERT or IGNORE INTO sets (year, title, basefolder, status) VALUES ('"+year+"','"+title+"','"+basepath+"','new')")
@@ -94,7 +101,7 @@ def updateset(title,status):
     #print sql
     d.execute(sql)
     conn.commit()
-    #print 'update finished'
+#print 'update finished'
 def indent(level):
     ind = "--"
     return ind * level
@@ -136,7 +143,7 @@ class ThreadUrl(threading.Thread):
             #grabs host from queue
             job = self.queue.get()
             
-            # first element in the list item is the url, second is the foldername, removed prefix for now. 
+            # first element in the list item is the url, second is the foldername, removed prefix for now.
             
             
             url = job[0]
@@ -165,9 +172,9 @@ class ThreadUrl(threading.Thread):
                 kilobytes = os.path.getsize(fname)/1024
                 print indent(1)+url
                 print indent(2)+'Downloaded '+str(kilobytes) + 'KB in '+ str(end-start)+' seconds Rate:'+   str(kilobytes/(end-start))+'KBps'
-                    
             
-                
+            
+            
             #signals to queue job is done
             self.queue.task_done()
 #######
@@ -215,14 +222,14 @@ def dowloadfolder(foldname, prefix=''):
         #print downloadurl
         
         #download(downloadcdurl,foldername,prefix)
-
+        
         job = [downloadurl,foldername,prefix]
         queue.put(job)
     queue.join()
 	
-
-                        
-
+    
+    
+    
     print 'Do Database update'+ albumpart + ' ' + str(numimages)
     if albumpart=='':
         print 'Null album - setting variable to 0'
@@ -237,12 +244,12 @@ def begin(urlpath):
     #fetch the member's page using the now defined opener
     response = opener.open(urlpath)
     html = response.read()
-
+    
     #parse out all of the links
     splita = html.split('<A');
     print 'There are '+ str(len(splita)) +' links'
-
-
+    
+    
     folderlist=[]
     #make a list of links that go to galleries
     for index, object in enumerate(splita):
@@ -256,13 +263,13 @@ def begin(urlpath):
                     if '\\' not in current2:
                         #print 'Found: '+current2
                         folderlist.append(current2)
-
-
-
+    
+    
+    
     #now we should have an array of current galleries
     print 'We have found ' +str(len(folderlist))+' folders'
-
-
+    
+    
     folderlist.sort()
     #print folderlist
     folderparse(folderlist)
@@ -280,6 +287,7 @@ def folderparse(folderlist):
         albumpart = explodefolder[6].replace('?folder=','')
         basepath = "http://members.latexlair.com/galleries/"+year+"/"+currentalbum+"/"
         #lets do some sql to show some status here.
+        initdb()
         d.execute("SELECT COUNT(*) FROM sets WHERE title is '"+currentalbum+"'")
         out= d.fetchone()
         if out[0] != 0:
@@ -289,9 +297,9 @@ def folderparse(folderlist):
         
         #add set to database
         addset(year,currentalbum,basepath)
-        ## stop processing
-        
-    
+## stop processing
+
+
 def doparse():
     #okay we now have all of this month's information in the database, start parsing through to get more.
     
@@ -320,7 +328,7 @@ def doparse():
             #print row
             #print currentbaseurl+'?folder=0'+str(currentfold+1)
             dowloadfolder(currentbaseurl+'?folder=0'+str(currentfold+1), '')
-
+    
     
     
     #update any status 5's to complete
@@ -363,10 +371,10 @@ def docompress():
         zip = zipfile.ZipFile(dst, 'w')
         zipdir(src, zip)
         updateset(title,'cbz')
-        #remove source files
-        #srcs = os.path.dirname(src)
-            #if os.path.exists(srcs):
-        #shutil.rmtree(src)
+#remove source files
+#srcs = os.path.dirname(src)
+#if os.path.exists(srcs):
+#shutil.rmtree(src)
 
 
 
@@ -395,7 +403,7 @@ def smartfoldercompletion():
     #month = today.strftime('%m')
     month = today.month
     year = today.year
-
+    
     if month < 10:
         month='0'+str(month)
     
@@ -412,17 +420,17 @@ def smartfoldercompletion():
             cyear = row[0]
             ctitle = row[1]
             print 'Year: ' + cyear + ' Title: ' +ctitle
-            #print "Status: " +row[3] +" Year: "+row[0] + " Title: " + row[1]
-
-
-
-
+    #print "Status: " +row[3] +" Year: "+row[0] + " Title: " + row[1]
+    
+    
+    
+    
     d.execute("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' and year is not '"+str(year)+"'")
     out= d.fetchone()
     if out[0] == 0:
         print 'No incomplete sets found that are not from this year'
     else:
-
+        
         print 'Found '+str(out[0])+' sets marked incomplete that are not from this year'
         sql="SELECT year,title FROM sets WHERE status is not 'cbz' and year is not '"+str(year)+"' ORDER BY year DESC, title ASC"
         print sql
@@ -499,7 +507,7 @@ def oldscrape(url):
         
         
         #add some workers
-
+        
         
         if checkoldset(albumyear, albumtitle, albumfolder) =='ToDo':
             temp = opener.open(url).read()
@@ -518,7 +526,7 @@ def oldscrape(url):
                     
                     job = [dlurl,foldername,'']
                     queue.put(job)
-                    #download(dlurl,foldername)
+            #download(dlurl,foldername)
             #Wait for queue to finish
             queue.join()
             #get Tfinal to get time elapsed
@@ -568,75 +576,79 @@ def getcovers(url):
 
 
 ############################ Start of Process ############################
-
-#Start 5 worker threads for downloading#
-for i in range(5):
-    t = ThreadUrl(queue)
-    t.setDaemon(True)
-    t.start()
-print 'Beginning Scrape Process'
+def bbparse():
+    
 
 
-# This will run a gallery search on the member page, this pulls only the new galleries
-begin('http://members.latexlair.com/members.html')
+    ##since we do db operations to a depth of 2, two cursors are needed##
+    #Start 5 worker threads for downloading#
+    for i in range(5):
+        t = ThreadUrl(queue)
+        t.setDaemon(True)
+        t.start()
+    print 'Beginning Scrape Process'
 
 
-
-
-
-## catparse works for the bulk category pages format is (url, debug), only new galleries
-catparse('http://members.latexlair.com/galleries-heavyrubber.html')
-catparse('http://members.latexlair.com/galleries-solo.html')
-catparse('http://members.latexlair.com/galleries-catsuits.html')
-catparse('http://members.latexlair.com/galleries-blonde.html')
-catparse('http://members.latexlair.com/galleries-events.html')
-catparse('http://members.latexlair.com/galleries-friends.html')
-
-
-# This parses searches added to the database, and pulls down photos
-doparse()
-
-
-
-## oldscrape seeks out the old gallery format, sadly cover placement isn't automated.
-## This one is a find and grab, there is a DB table to indicate status only.
-oldscrape('http://members.latexlair.com/galleries-heavyrubber.html')
-oldscrape('http://members.latexlair.com/galleries-solo.html')
-oldscrape('http://members.latexlair.com/galleries-catsuits.html')
-oldscrape('http://members.latexlair.com/galleries-blonde.html')
-oldscrape('http://members.latexlair.com/galleries-events.html')
-oldscrape('http://members.latexlair.com/galleries-friends.html')
+    # This will run a gallery search on the member page, this pulls only the new galleries
+    begin('http://members.latexlair.com/members.html')
 
 
 
 
 
-# This compresses any finished sets to a solid CBZ file for easy cataloging and viewing 
-docompress() # this searches the sets table, not the oldsets table.
+    ## catparse works for the bulk category pages format is (url, debug), only new galleries
+    catparse('http://members.latexlair.com/galleries-heavyrubber.html')
+    catparse('http://members.latexlair.com/galleries-solo.html')
+    catparse('http://members.latexlair.com/galleries-catsuits.html')
+    catparse('http://members.latexlair.com/galleries-blonde.html')
+    catparse('http://members.latexlair.com/galleries-events.html')
+    catparse('http://members.latexlair.com/galleries-friends.html')
 
 
-# Oldsets aren't compressed by this script, since cover download automation has not yet been implemented.
+    # This parses searches added to the database, and pulls down photos
+    doparse()
+
+
+
+    ## oldscrape seeks out the old gallery format, sadly cover placement isn't automated.
+    ## This one is a find and grab, there is a DB table to indicate status only.
+    oldscrape('http://members.latexlair.com/galleries-heavyrubber.html')
+    oldscrape('http://members.latexlair.com/galleries-solo.html')
+    oldscrape('http://members.latexlair.com/galleries-catsuits.html')
+    oldscrape('http://members.latexlair.com/galleries-blonde.html')
+    oldscrape('http://members.latexlair.com/galleries-events.html')
+    oldscrape('http://members.latexlair.com/galleries-friends.html')
 
 
 
 
-#Check for incomplete sets, print them out
 
-d.execute("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC")
-out= d.fetchone()
-if out[0] != 0:
-    print '--The following are incomplete--'
-    for row in c.execute("SELECT * FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC"):
-        #print row
-        print "Status: " +row[3] +" Year: "+row[0] + " Title: " + row[1]
-
-    print '--------------------------------'
-    #Smart folder completionuses rulesets do define finished sets. - technically this could be used instead of the 5 folder counter but it feels a little too lazy to do that.
-    smartfoldercompletion()
+    # This compresses any finished sets to a solid CBZ file for easy cataloging and viewing
+    docompress() # this searches the sets table, not the oldsets table.
 
 
-#Close db connection
-conn.close()
+    # Oldsets aren't compressed by this script, since cover download automation has not yet been implemented.
+
+
+
+
+    #Check for incomplete sets, print them out
+
+    d.execute("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC")
+    out= d.fetchone()
+    if out[0] != 0:
+        print '--The following are incomplete--'
+        for row in c.execute("SELECT * FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC"):
+            #print row
+            print "Status: " +row[3] +" Year: "+row[0] + " Title: " + row[1]
+        
+        print '--------------------------------'
+        #Smart folder completionuses rulesets do define finished sets. - technically this could be used instead of the 5 folder counter but it feels a little too lazy to do that.
+        smartfoldercompletion()
+
+
+    #Close db connection
+    conn.close()
 
 
 
