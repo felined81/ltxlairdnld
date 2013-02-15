@@ -28,7 +28,7 @@ class RotatingLogger(object):
         l = logging.getLogger('mylar')
         l.setLevel(logging.DEBUG)
 
-        self.filename = os.path.join(mylar.LOG_DIR, self.filename)
+        self.filename = os.path.join(herp.LOG_DIR, self.filename)
 
         filehandler = handlers.RotatingFileHandler(self.filename, maxBytes=self.max_size, backupCount=self.max_files)
         filehandler.setLevel(logging.DEBUG)
@@ -55,7 +55,8 @@ class RotatingLogger(object):
         threadname = threading.currentThread().getName()
 
         if level != 'DEBUG':
-            mylar.LOG_LIST.insert(0, (helpers.now(), message, level, threadname))
+            import helpers
+            herp.LOG_LIST.insert(0, (helpers.now(), message, level, threadname))
 
         message = threadname + ' : ' + message
 
@@ -68,7 +69,7 @@ class RotatingLogger(object):
         else:
             logger.error(message)
 
-lldl_log = RotatingLogger('mylar.log', MAX_SIZE, MAX_FILES)
+lldl_log = RotatingLogger('lldl.log', MAX_SIZE, MAX_FILES)
 
 def debug(message):
     lldl_log.log(message, level='DEBUG')

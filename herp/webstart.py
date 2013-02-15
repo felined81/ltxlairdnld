@@ -29,7 +29,14 @@ def initialize(options={}):
     }
 
 
-
+    if options['http_password'] != "":
+        conf['/'].update({
+            'tools.auth_basic.on': True,
+            'tools.auth_basic.realm': 'Mylar',
+            'tools.auth_basic.checkpassword': cherrypy.lib.auth_basic.checkpassword_dict(
+                    {options['http_username']:options['http_password']})
+        })
+        
 
     # Prevent time-outs
     cherrypy.engine.timeout_monitor.unsubscribe()

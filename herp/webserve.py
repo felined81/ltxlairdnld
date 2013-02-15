@@ -94,14 +94,7 @@ class WebInterface:
     index.exposed=True
 
     def settings(self):
-        ##pull username and pw from config
-        yourusername = herp.USERNAME
-        yourpassword = herp.PASSWORD
-        rootdownloadfolder = herp.ROOTDIR
 
-
-
-        #db.close()
         return serve_template(templatename="settings.html")
     settings.exposed=True
 
@@ -126,13 +119,15 @@ class WebInterface:
 
     doit.exposed=True
 
-    def updatesettings(self, user, passwd, dlroot, httpport, lbrowser):
+    def updatesettings(self, user, passwd, dlroot, httpport, lbrowser, httpuser, httppass):
         #
         herp.USERNAME=user
         herp.PASSWORD=passwd
         herp.ROOTDIR=dlroot
         herp.HTTP_PORT=httpport
         herp.LAUNCH_BROWSER = bool(lbrowser)
+        herp.HTTP_USERNAME = httpuser
+        herp.HTTP_PASSWORD = httppass
         herp.config_write()
         out = 'Username Successfully Set to: '+ user + ' Password set to: ' + passwd + ' Download root set to: ' + dlroot; print out
         return out

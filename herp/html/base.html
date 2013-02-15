@@ -47,6 +47,7 @@ import os, os.path
 				event.preventDefault();
 			});
          $( "#tabs" ).tabs();
+         $( "#radio" ).buttonset();
 
 	});
 
@@ -56,6 +57,7 @@ import os, os.path
 function dopost(form, handler){
 formhandle = "#"+form;
 var dataString = $(formhandle).serialize();
+alert(dataString);
 $.post(handler, dataString, function(data,status){
     $("#out").html(data);
    });

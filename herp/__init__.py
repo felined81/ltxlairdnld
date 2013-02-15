@@ -5,7 +5,7 @@ import cherrypy
 from herp import logger
 
 from lib.configobj import ConfigObj
-
+from lib.apscheduler.scheduler import Scheduler
 
 USERNAME = None
 PASSWORD = None
@@ -13,20 +13,29 @@ ROOTDIR = None
 WEBUSER = None
 WEBPASS = None
 
+
 CACHE_DIR = None
+
 
 HTTP_PORT = None
 HTTP_USERNAME = None
 HTTP_PASSWORD = None
 LAUNCH_BROWSER = 1
-LOG_DIR = None
 
+
+LOG_DIR = None
 SIGNAL = None
 FULL_PATH=None
+DATA_DIR = None
+
+VERBOSE = 1
+
 
 CONFIG_FILE = 'herp.ini'
 CFG=ConfigObj(CONFIG_FILE)
 
+SCHED = Scheduler()
+LOG_LIST = []
 
 INIT_LOCK = threading.Lock()
 __INITIALIZED__ = False
@@ -48,6 +57,7 @@ def check_setting_int(config, cfg_name, item_name, def_val):
         my_val = int(config[cfg_name][item_name])
     except:
         my_val = def_val
+        logger.info('Error in Int Function CFG')
         try:
             config[cfg_name][item_name] = my_val
         except:
@@ -75,7 +85,7 @@ def check_setting_str(config, cfg_name, item_name, def_val, log=True):
 
 def initialize():
 	with INIT_LOCK:
-		global USERNAME, PASSWORD, ROOTDIR, WEBUSER, WEBPASS, HTTP_PORT, HTTP_USERNAME, HTTP_PASSWORD,LAUNCH_BROWSER, CFG, __INITIALIZED__
+		global USERNAME, PASSWORD, ROOTDIR, WEBUSER, WEBPASS, HTTP_PORT, HTTP_USERNAME, HTTP_PASSWORD,LAUNCH_BROWSER, CFG, __INITIALIZED__, DATA_DIR
         #if __INITIALIZED__:
         #    return False
         CheckSection('General')
@@ -83,6 +93,7 @@ def initialize():
         try:
             HTTP_PORT = check_setting_int(CFG, 'General', 'http_port', 8090)
         except:
+            logger.info('Error Reverting to 8090')
             HTTP_PORT = 8090
         USERNAME = check_setting_str(CFG, 'General', 'site_username', '')
         PASSWORD = check_setting_str(CFG, 'General', 'site_password', '')
@@ -101,7 +112,7 @@ def initialize():
                 os.makedirs(LOG_DIR)
             except OSError:
                 if VERBOSE:
-                    print 'Unable to create the log directory. Logging to screen only.'
+                     logger.info( 'Unable to create the log directory. Logging to screen only.')
 
         logger.lldl_log.initLogger(verbose=VERBOSE)
 
@@ -110,7 +121,7 @@ def initialize():
 
 def config_write():
 
-    print 'writing config'
+    logger.info('Writing Config')
     new_config = ConfigObj()
 
     new_config.filename = CONFIG_FILE
@@ -144,8 +155,11 @@ def start():
 
     global __INITIALIZED__, started
     if __INITIALIZED__:
-
-		started = True
+            import dnld
+            # Schedule parse action
+            SCHED.add_interval_job(dnld.bbparse, hours=48)
+            SCHED.start()
+            started = True
 
 def shutdown(restart=False, update=False):
 	#write Configuration
@@ -154,14 +168,14 @@ def shutdown(restart=False, update=False):
 
 
     if not restart and not update:
-        print 'Now Exiting'
+         logger.info('Now Exiting')
 
     if restart:
-        print('lldl is restarting...')
+        logger.info('lldl is restarting...')
         popen_list = [sys.executable, FULL_PATH]
 
 
-        print 'Restarting lldl with ' + str(popen_list)
+        logger.info('Restarting lldl with ' + str(popen_list))
         subprocess.Popen(popen_list, cwd=os.getcwd())
 
 
