@@ -1,0 +1,79 @@
+<%
+import os, os.path
+%>
+<head>
+    <title>Image Capture UI</title>
+  <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.0/themes/base/jquery-ui.css" />
+  <script src="http://code.jquery.com/jquery-1.8.3.js"></script>
+  <script src="http://code.jquery.com/ui/1.10.0/jquery-ui.js"></script>
+
+    <link rel="stylesheet" href="/res/style.css">
+
+    <script>
+        $(document).ready(function(){
+                          $("#submit").click(function(){
+                                            $.post("updatesettings",
+                                                    {
+                                                    user:$("#user").attr("value"),
+                                                    passwd:$("#passwd").attr("value"),
+                                                    httpport:$("#httpport").attr("value"),
+                                                    lbrowser:$("#browser").attr("value"),
+                                                    dlroot:$("#dlroot").attr("value")
+
+                                                    },
+                                                   function(data,status){
+                                                   $("#out").html(data);
+
+                                                   }
+                                                    );
+                                            });
+                            $("button").click(function(){
+                                            $.post("doit",
+                                                    {
+                                                    something:$(this).attr("value")
+                                                    }
+                                                    );
+                                            });
+                            $('#settings').click(function() {
+                                window.location = "settings";
+                            });
+
+                            });
+
+	$(function() {
+		$( "input[type=submit], button" )
+			.button()
+			.click(function( event ) {
+				event.preventDefault();
+			});
+         $( "#tabs" ).tabs();
+
+	});
+
+
+
+
+function dopost(form, handler){
+formhandle = "#"+form;
+var dataString = $(formhandle).serialize();
+$.post(handler, dataString, function(data,status){
+    $("#out").html(data);
+   });
+}
+
+    </script>
+
+
+</head>
+
+
+
+
+<body>
+BB Downloader Web Interface<br>
+<button id="settings" >Settings</button>
+<button value='Check'>Check For New Sets</button>
+
+<br>
+
+

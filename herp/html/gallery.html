@@ -1,0 +1,38 @@
+<%
+import os, os.path
+
+    
+
+    
+    
+%>
+<head>
+    <title>${year}, ${title}</title>
+</head>
+
+<body>
+
+<%
+
+
+def herp(dirtocheck):
+    fullpath =[]
+    for root, _, files in os.walk(dirtocheck):
+        for f in files:
+            tpath = os.path.join(root, f)
+            if 'becool' not in tpath:
+                fullpath.append(tpath)
+    return fullpath
+
+
+dirpath = PATH+'/BB/'+year+'/'+title
+
+print dirpath
+
+                
+%>
+% for row in herp(dirpath):
+    <li>${row}</li>
+    
+% endfor
+</body>

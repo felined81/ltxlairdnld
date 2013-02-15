@@ -1,0 +1,54 @@
+<%include file="base.html"/>
+<%!
+import herp
+%>
+
+
+<form id="updatesettings" action="updatesettings" method="post" class="form">
+<div id="tabs">
+  <ul>
+    <li><a href="#tabs-1">Information</a></li>
+    <li><a href="#tabs-2">WebServer</a></li>
+    <li><a href="#tabs-3">Extra</a></li>
+  </ul>
+
+    <div id="tabs-1">
+    <fieldset>
+        <legend>Website Credentials</legend>
+        <table>
+           <tr><td>Username</td><td><input type=text id=user name="user" value=${herp.USERNAME}></td></tr>
+
+           <tr><td>Password</td><td><input type=text id=passwd name="passwd" value=${herp.PASSWORD}></td></tr>
+        </table>
+    </fieldset>
+    <button value='Shutdown'>Shutdown</button>
+    <button value='Restart'>Restart</button>
+    </div>
+
+    <div id="tabs-2">
+    <fieldset>
+        <legend>Server Settings</legend>
+        <table>
+            <tr><td>Download Root</td><td><input type=text name="dlroot"  value=${herp.ROOTDIR}></td></tr>
+           <tr><td>Port</td><td><input type=text name="httpport" value=${herp.HTTP_PORT}></td></tr>
+           <tr><td>Launch Browser</td><td><input type=text name="lbrowser" value=${herp.LAUNCH_BROWSER}></td></tr>
+           <tr><td></td></tr>
+       </table>
+    </fieldset>
+    </div>
+  <div id="tabs-3">
+    <button value="oldscan">Scan Old</button>
+    <button value="dbrebuild">Rebuild Database</button>
+  </div>
+</div>
+
+<button  value="test" onclick="dopost('updatesettings','updatesettings');">Commit Changes</button>
+
+</form>
+
+
+
+
+
+<div id=out></div>
+</body>
