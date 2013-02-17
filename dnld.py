@@ -7,17 +7,14 @@
 
 #########Don't edit anything below this line#####################
 
-import urllib
 import urllib2
 import os
-import sqlite3
-import shutil
 import time
 import Queue
 import threading
 from datetime import date
 from datetime import datetime
-from herp import db
+from herp import db, fileutil, logger
 import herp
 currentyear=str(date.today().year)
 
@@ -133,7 +130,7 @@ class ThreadUrl(threading.Thread):
 #######
 def dowloadfolder(foldname, prefix=''):
     #open folder - just testing now, will convert to a loop later
-    print 'Now looking in '+foldname
+    logger.info( 'Now looking in '+foldname)
     explodefolder = foldname.split('/')
     year = explodefolder[4]
     currentalbum = explodefolder[5]
@@ -163,9 +160,8 @@ def dowloadfolder(foldname, prefix=''):
     #now we have a list of pictures relative to our folder
     numimages = len(imagelist)
     
-    print 'Found '+ str(numimages) +' images'
+    logger.info( 'Found '+ str(numimages) +' images, in '+currentalbum)
     currentimagefolder = 'http://members.latexlair.com/galleries/'+year+'/'+currentalbum+'/'
-    print currentalbum
     foldername = year+'/'+currentalbum+'/'
     ## Make sure the directory will exist
     ensure_dir(rootdownloadfolder+foldername)
@@ -183,12 +179,12 @@ def dowloadfolder(foldname, prefix=''):
     
     
     
-    print 'Do Database update'+ albumpart + ' ' + str(numimages)
+    logger.info('Do Database update'+ albumpart + ' ' + str(numimages))
     if albumpart=='':
-        print 'Null album - setting variable to 0'
+        logger.info( 'Null album - setting variable to 0')
         albumpart = '00'
     if numimages > 1:
-        print 'We downloaded at least 2 photos, increment folder'
+        logger.info( 'We downloaded at least 2 photos, increment folder')
         updateset(currentalbum,albumpart)
 
 
@@ -200,7 +196,7 @@ def begin(urlpath):
     
     #parse out all of the links
     splita = html.split('<A');
-    print 'There are '+ str(len(splita)) +' links'
+    logger.info('There are '+ str(len(splita)) +' links')
     
     
     folderlist=[]
@@ -220,7 +216,7 @@ def begin(urlpath):
     
     
     #now we should have an array of current galleries
-    print 'We have found ' +str(len(folderlist))+' folders'
+    logger.info('We have found ' +str(len(folderlist))+' folders')
     
     
     folderlist.sort()
@@ -228,7 +224,7 @@ def begin(urlpath):
     folderparse(folderlist)
 
 def folderparse(folderlist):
-    print 'Beginning Folder Parse'
+    logger.info('Beginning Folder Parse')
     #loop through and add to our download handler
     for n, object in enumerate(folderlist):
         lefolder = folderlist[n]
@@ -239,14 +235,13 @@ def folderparse(folderlist):
         currentalbum = explodefolder[5]
         #albumpart = explodefolder[6].replace('?folder=','')
         basepath = "http://members.latexlair.com/galleries/"+year+"/"+currentalbum+"/"
-        #lets do some sql to show some status here.
-        #initdb()
+
         
         out=myDB.action("SELECT COUNT(*) FROM sets WHERE title is '"+currentalbum+"'").fetchone()
         if out[0] != 0:
-            print year+ ' '+currentalbum+' Exists in database, doing nothing'
+            logger.info(year+ ' '+currentalbum+' Exists in database, doing nothing')
         else:
-            print year+ ' '+currentalbum+' Not yet in database, adding'
+            logger.info(year+ ' '+currentalbum+' Not yet in database, adding')
         
         #add set to database
         addset(year,currentalbum,basepath)
@@ -507,17 +502,14 @@ def getcovers(url):
 ############################ Start of Process ############################
 def bbparse():
     init()
-    
-
-    ##since we do db operations to a depth of 2, two cursors are needed##
     #Start 5 worker threads for downloading#
     for i in range(5):
         t = ThreadUrl(queue)
         t.setDaemon(True)
         t.start()
-    print 'Beginning Scrape Process'
-
-
+    
+    logger.info('Beginning Scrape Process')
+    
     # This will run a gallery search on the member page, this pulls only the new galleries
     begin('http://members.latexlair.com/members.html')
 
@@ -537,14 +529,6 @@ def bbparse():
     # This parses searches added to the database, and pulls down photos
     doparse()
 
-
-
-
-
-
-
-
-
     # This compresses any finished sets to a solid CBZ file for easy cataloging and viewing
     if herp.CBZ_Compress == 1:
         docompress() # this searches the sets table, not the oldsets table.
@@ -552,12 +536,7 @@ def bbparse():
 
     # Oldsets aren't compressed by this script, since cover download automation has not yet been implemented.
 
-
-
-
     #Check for incomplete sets, print them out
-
-    
     out= myDB.action("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC").fetchone()
     if out[0] != 0:
         print '--The following are incomplete--'
@@ -566,13 +545,14 @@ def bbparse():
             print "Status: " +row[3] +" Year: "+row[0] + " Title: " + row[1]
         
         print '--------------------------------'
-        #Smart folder completionuses rulesets do define finished sets. - technically this could be used instead of the 5 folder counter but it feels a little too lazy to do that.
+        #Smart folder completionuses rulesets to define finished sets. - technically this could be used instead of the 5 folder counter but it feels a little too lazy to do that.
         smartfoldercompletion()
+    fileutil.thumbdbbuild()
 
 
 def getoldsets():
     init()
-
+    
     # oldscrape seeks out the old gallery format, sadly cover placement isn't automated.
     ## This one is a find and grab, there is a DB table to indicate status only.
     oldscrape('http://members.latexlair.com/galleries-heavyrubber.html')
@@ -581,6 +561,6 @@ def getoldsets():
     oldscrape('http://members.latexlair.com/galleries-blonde.html')
     oldscrape('http://members.latexlair.com/galleries-events.html')
     oldscrape('http://members.latexlair.com/galleries-friends.html')
-
+    fileutil.thumbdbbuild()
 
 

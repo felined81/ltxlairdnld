@@ -1,6 +1,7 @@
 import os
 import herp
 import db
+from herp import logger
 
 def thumbnailer(title):
     imgpath= thumbdb(title)
@@ -29,9 +30,10 @@ def checkdir(dirtocheck):
 
 
 def thumbdbbuild():
+    logger.info('Rebuilding Thumbnail Database')
     myDB = db.DBConnection()
     #myDB.action("CREATE TABLE IF NOT EXISTS thumbs (year text, title text primary key not null, path text)")
-    myDB.action("DROP TABLE thumbs")
+    myDB.action("DROP TABLE IF EXISTS thumbs")
     myDB.action("CREATE TABLE thumbs (year text, title text primary key not null, path text)")
     
     go = myDB.action("SELECT year, title FROM sets ORDER BY year DESC, title ASC")
@@ -42,7 +44,7 @@ def thumbdbbuild():
             herp.ROOTDIR = 'BB/'
         dpath = herp.ROOTDIR+row[0]+'/'+row[1]; print dpath        
         path = checkdir(herp.ROOTDIR+year+'/'+title)
-        print path
+        #print path
         myDB.action("INSERT  or IGNORE INTO thumbs (year, title, path) VALUES ('"+year+"','"+title+"','"+path+"')")
         
     go = myDB.action("SELECT year, title FROM oldsets ORDER BY year DESC, title ASC")
@@ -53,7 +55,7 @@ def thumbdbbuild():
             herp.ROOTDIR = 'BB/'
         dpath = herp.ROOTDIR+row[0]+'/'+row[1]; print dpath        
         path = checkdir(herp.ROOTDIR+year+'/'+title)
-        print path
+        #print path
         myDB.action("INSERT  or IGNORE INTO thumbs (year, title, path) VALUES ('"+year+"','"+title+"','"+path+"')")
 
 
