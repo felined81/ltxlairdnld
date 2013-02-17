@@ -108,7 +108,7 @@ def initialize():
         HTTP_USERNAME = check_setting_str(CFG, 'General', 'http_username', '')
         HTTP_PASSWORD = check_setting_str(CFG, 'General', 'http_password', '')
         LAUNCH_BROWSER = bool(check_setting_int(CFG, 'General', 'launch_browser', 1))
-        ROOTDIR = check_setting_str(CFG, 'General', 'dldir', '')
+        ROOTDIR = check_setting_str(CFG, 'General', 'dldir', 'BB/')
         LOG_DIR = check_setting_str(CFG, 'General', 'log_dir', '')
         CBZ_Compress = bool(check_setting_int(CFG, 'General', 'makecbz',0))
 
