@@ -37,7 +37,7 @@ from herp import fileutil
             <tr><td>Password</td><td><input type=text name="httppass"  value=${herp.HTTP_PASSWORD}></td></tr>
             <tr><td>Download Root</td><td><input type=text name="dlroot"  value=${herp.ROOTDIR}></td></tr>
             <tr><td>Port</td><td><input type=text name="httpport" value=${herp.HTTP_PORT}></td></tr>
-            <tr><td>Launch Browser</td><td><input type=text name="lbrowser" value=${herp.LAUNCH_BROWSER}></td></tr>
+            <tr><td>Launch Browser</td><td><input type=text name="lbrowser" value=${bool(herp.LAUNCH_BROWSER)}></td></tr>
             <tr>
                 <td></td>
                 <td>
