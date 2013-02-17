@@ -124,6 +124,7 @@ def initialize():
                      logger.info( 'Unable to create the log directory. Logging to screen only.')
 
         logger.lldl_log.initLogger(verbose=VERBOSE)
+        setupdb()
        
        
        
