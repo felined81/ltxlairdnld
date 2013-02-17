@@ -1,7 +1,31 @@
 import time
 from operator import itemgetter
 import datetime
-import re
+import re, os
+import herp
+
+def thumbnailer(year, title):
+    imgpath= checkdir(herp.ROOTDIR+year+'/'+title)
+    imgstring=''
+    if 'None' not in imgpath:
+        imgstring = '<a href='+imgpath+' class="preview"><img src="/res/thumbnail.png" width=20></a>'
+
+    return imgstring
+
+
+def checkdir(dirtocheck):
+    fullpath =[]
+    for root, _, files in os.walk(dirtocheck):
+        for f in files:
+            tpath = os.path.join(root, f)
+            if 'becool' not in tpath:
+                fullpath.append(tpath)
+
+    if len(fullpath)>0:
+        return fullpath[0]
+    else:
+        return 'None'
+
 
 def multikeysort(items, columns):
 

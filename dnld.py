@@ -17,91 +17,44 @@ import Queue
 import threading
 from datetime import date
 from datetime import datetime
-
+from herp import db
+import herp
 currentyear=str(date.today().year)
 
 
-def initdb():
-    global conn
-    conn = sqlite3.connect('data.db')
-    global c
-    global d
-    c = conn.cursor()
-    d = conn.cursor()
+
+myDB=None
 
 
-
-initdb()
-
-#need to know what the year, title, basepath, and status of each set is. Set being the last number pulled
-c.execute("CREATE TABLE IF NOT EXISTS sets (year text, title text primary key not null, basefolder text, status text)")
-c.execute("CREATE TABLE IF NOT EXISTS oldsets (year text, title text, folder text, status text)")
-
-#going to save our settings in a table as well
-c.execute("CREATE TABLE IF NOT EXISTS settings (setting text primay key not null, value text)")
-#commit changes
-conn.commit()
-
-#check username and pw
-d.execute("SELECT COUNT(*) FROM settings WHERE setting is 'username'")
-out= d.fetchone()
-if out[0] == 0:
-    print 'You have not yet set your username and password'
-    print 'Enter your username, followed by enter'
-    tempuser = raw_input()
-    print 'Enter your password, followed by enter'
-    temppass = raw_input()
-    
-    d.execute("INSERT INTO settings (setting, value) VALUES ('username','"+tempuser+"')")
-    d.execute("INSERT INTO settings (setting, value) VALUES ('password','"+temppass+"')")
-    conn.commit()
+rootdownloadfolder = None
+opener = None
 
 
-#Check Fileroot
-d.execute("SELECT COUNT(*) FROM settings WHERE setting is 'fileroot'")
-if d.fetchone()[0] == 0:
-    print 'File root not set'
-    print 'Please enter the root directory you would like to save to on your computer'
-    tempdir = raw_input()
-    d.execute("INSERT INTO settings (setting, value) VALUES ('fileroot','"+tempdir+"')")
-    conn.commit()
+def init():
+    global opener, rootdownloadfolder, myDB
+    #Define our password manager.
+    password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+    top_level_url = "http://members.latexlair.com"
+    password_mgr.add_password(None, top_level_url, herp.USERNAME, herp.PASSWORD)
+    handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+    opener = urllib2.build_opener(handler)
+    urllib2.install_opener(opener)
+    rootdownloadfolder = herp.ROOTDIR
+    myDB=db.DBConnection()
 
+    print herp.USERNAME, herp.PASSWORD
 
-
-
-##pull username and pw from db
-d.execute("SELECT value FROM settings WHERE setting is 'username'")
-yourusername = d.fetchone()[0]
-
-d.execute("SELECT value FROM settings WHERE setting is 'password'")
-yourpassword = d.fetchone()[0]
-
-d.execute("SELECT value FROM settings WHERE setting is 'fileroot'")
-rootdownloadfolder = d.fetchone()[0]
-
-
-
-#Define our password manager.
-password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
-top_level_url = "http://members.latexlair.com"
-password_mgr.add_password(None, top_level_url, yourusername, yourpassword)
-handler = urllib2.HTTPBasicAuthHandler(password_mgr)
-opener = urllib2.build_opener(handler)
-urllib2.install_opener(opener)
-
-conn.close()
 #########Helper Functions########################################
 def addset(year,title,basepath):
-    c.execute("INSERT or IGNORE INTO sets (year, title, basefolder, status) VALUES ('"+year+"','"+title+"','"+basepath+"','new')")
-    conn.commit()
+    myDB.action("INSERT or IGNORE INTO sets (year, title, basefolder, status) VALUES ('"+year+"','"+title+"','"+basepath+"','new')")
+
 
 def updateset(title,status):
-    d = conn.cursor()
     sql="UPDATE sets SET status='"+status+"' WHERE title='"+title+"'"
     #print sql
-    d.execute(sql)
-    conn.commit()
+    myDB.action(sql)
 #print 'update finished'
+    
 def indent(level):
     ind = "--"
     return ind * level
@@ -153,7 +106,7 @@ class ThreadUrl(threading.Thread):
             #Cannot call DL function w/o collision here, snagged the function code and dependencies
             password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
             top_level_url = "http://members.latexlair.com"
-            password_mgr.add_password(None, top_level_url, yourusername, yourpassword)
+            password_mgr.add_password(None, top_level_url, herp.USERNAME, herp.PASSWORD)
             handler = urllib2.HTTPBasicAuthHandler(password_mgr)
             opener = urllib2.build_opener(handler)
             urllib2.install_opener(opener)
@@ -284,12 +237,12 @@ def folderparse(folderlist):
         explodefolder = lefolder.split('/')
         year = explodefolder[4]
         currentalbum = explodefolder[5]
-        albumpart = explodefolder[6].replace('?folder=','')
+        #albumpart = explodefolder[6].replace('?folder=','')
         basepath = "http://members.latexlair.com/galleries/"+year+"/"+currentalbum+"/"
         #lets do some sql to show some status here.
-        initdb()
-        d.execute("SELECT COUNT(*) FROM sets WHERE title is '"+currentalbum+"'")
-        out= d.fetchone()
+        #initdb()
+        
+        out=myDB.action("SELECT COUNT(*) FROM sets WHERE title is '"+currentalbum+"'").fetchone()
         if out[0] != 0:
             print year+ ' '+currentalbum+' Exists in database, doing nothing'
         else:
@@ -303,27 +256,19 @@ def folderparse(folderlist):
 def doparse():
     #okay we now have all of this month's information in the database, start parsing through to get more.
     
-    c.execute("SELECT * FROM sets WHERE status is 'new'")
-    for row in c:
+    
+    for row in myDB.action("SELECT * FROM sets WHERE status is 'new'"):
         currentbaseurl=row[2]
         #print row
         dowloadfolder(currentbaseurl, '00-')
-    #print "finished record"
-    # run through each base url
-    
-    #after run
-    
-    
-    # Search what has covers already
+
+
     folderconvention = [0,1,2,3,4] #if the last checked folder was x look for x+1
-    
     for n, object in enumerate(folderconvention):
         currentfold= folderconvention[n]
         #print str(currentfold)+" folderloop"
         sql ="SELECT * FROM sets WHERE status is '0"+str(currentfold)+"'"
-        #print sql
-        c.execute(sql)
-        for row in c:
+        for row in myDB.action(sql):
             currentbaseurl=row[2]
             #print row
             #print currentbaseurl+'?folder=0'+str(currentfold+1)
@@ -335,8 +280,8 @@ def doparse():
     
     sql="UPDATE sets SET status='done' WHERE status='05'"
     #print sql
-    d.execute(sql)
-    conn.commit()
+    myDB.action(sql)
+    
 
 
 
@@ -352,18 +297,12 @@ def docompress():
     
     
     #Check if there are any finished sets, and compress them
-    d.execute("SELECT COUNT(*) FROM sets WHERE status is 'done'")
-    out= d.fetchone()
+    out = myDB.action("SELECT COUNT(*) FROM sets WHERE status is 'done'").fetchone()
     if out[0] != 0:
         print 'There are '+str(out[0])+' sets awaiting compression'
-    
-    
-    
-    
     sql ="SELECT * FROM sets WHERE status is 'done'"
     #print sql
-    d.execute(sql)
-    for row in d:
+    for row in myDB.action(sql):
         year=row[0]
         title=row[1]
         src=rootdownloadfolder+year+"/"+title+"/"
@@ -371,10 +310,6 @@ def docompress():
         zip = zipfile.ZipFile(dst, 'w')
         zipdir(src, zip)
         updateset(title,'cbz')
-#remove source files
-#srcs = os.path.dirname(src)
-#if os.path.exists(srcs):
-#shutil.rmtree(src)
 
 
 
@@ -408,15 +343,15 @@ def smartfoldercompletion():
         month='0'+str(month)
     
     
-    d.execute("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' and year is  '"+str(year)+"' and title NOT LIKE '"+str(month)+"%'")
-    out= d.fetchone()
+    out=myDB.action("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' and year is  '"+str(year)+"' and title NOT LIKE '"+str(month)+"%'").fetchone()
+    
     if out[0] == 0:
         print 'No incomplete sets sets found that are from this year but not this month'
     else:
         print 'Found '+str(out[0])+' sets marked incomplete that are from this year but not this month'
         sql="SELECT year,title FROM sets WHERE status is not 'cbz' and year is  '"+str(year)+"' and title NOT LIKE '"+str(month)+"%' ORDER BY year DESC, title ASC"
         print sql
-        for row in c.execute(sql):
+        for row in myDB.action(sql):
             cyear = row[0]
             ctitle = row[1]
             print 'Year: ' + cyear + ' Title: ' +ctitle
@@ -425,8 +360,8 @@ def smartfoldercompletion():
     
     
     
-    d.execute("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' and year is not '"+str(year)+"'")
-    out= d.fetchone()
+    
+    out= myDB.action("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' and year is not '"+str(year)+"'").fetchone()
     if out[0] == 0:
         print 'No incomplete sets found that are not from this year'
     else:
@@ -434,25 +369,25 @@ def smartfoldercompletion():
         print 'Found '+str(out[0])+' sets marked incomplete that are not from this year'
         sql="SELECT year,title FROM sets WHERE status is not 'cbz' and year is not '"+str(year)+"' ORDER BY year DESC, title ASC"
         print sql
-        for row in c.execute(sql):
+        for row in myDB.action(sql):
             cyear = row[0]
             ctitle = row[1]
             print 'Year: ' + cyear + ' Title: ' +ctitle
-            d.execute("UPDATE sets SET status='done' WHERE title='"+ctitle+"'")
-            conn.commit()
+            myDB.action("UPDATE sets SET status='done' WHERE title='"+ctitle+"'")
+           
 
 ###### Old Set Download Handling #####
 #Sorry no covers, cover handling was really weird on the old galleries. I'll see if i can dump them into each year folder.
 def addoldset(year, title, folder):
+
     output=''
     #check for record
-    d.execute("SELECT COUNT(*) FROM oldsets WHERE year is '"+year+"' and title is '"+title+"' and folder is '"+folder+"'")
-    out= d.fetchone()
+    
+    out= myDB.action("SELECT COUNT(*) FROM oldsets WHERE year is '"+year+"' and title is '"+title+"' and folder is '"+folder+"'").fetchone()
     if out[0] == 0:
         #insert record if not exists
         sql="INSERT INTO oldsets (year, title, folder,status) VALUES ('"+year+"','"+title+"','"+folder+"','ToDo')"
-        d.execute(sql)
-        conn.commit()
+        myDB.action(sql)
         output='Added'
     else:
         print 'Record Exists doing nothing'
@@ -462,15 +397,14 @@ def addoldset(year, title, folder):
 
 
 def checkoldset(year, title, folder):
-    output=''
     #check for record
-    d.execute("SELECT status FROM oldsets WHERE year is '"+year+"' and title is '"+title+"' and folder is '"+folder+"'")
-    out= d.fetchone()
+    
+    out= myDB.action("SELECT status FROM oldsets WHERE year is '"+year+"' and title is '"+title+"' and folder is '"+folder+"'").fetchone()
     return out[0]
 
 def updateoldset(year, title, folder, status):
-    d.execute("UPDATE oldsets SET status='"+status+"'  WHERE year is '"+year+"' and title is '"+title+"' and folder is '"+folder+"'")
-    conn.commit()
+    myDB.action("UPDATE oldsets SET status='"+status+"'  WHERE year is '"+year+"' and title is '"+title+"' and folder is '"+folder+"'")
+
 
 
 
@@ -502,12 +436,7 @@ def oldscrape(url):
         print albumyear, albumtitle, albumfolder
         addoldset(albumyear, albumtitle, albumfolder) #add set to database if it isn't there already
         
-        #check db if the current folder is done
-        
-        
-        
-        #add some workers
-        
+      
         
         if checkoldset(albumyear, albumtitle, albumfolder) =='ToDo':
             temp = opener.open(url).read()
@@ -577,8 +506,8 @@ def getcovers(url):
 
 ############################ Start of Process ############################
 def bbparse():
+    init()
     
-
 
     ##since we do db operations to a depth of 2, two cursors are needed##
     #Start 5 worker threads for downloading#
@@ -610,21 +539,15 @@ def bbparse():
 
 
 
-    ## oldscrape seeks out the old gallery format, sadly cover placement isn't automated.
-    ## This one is a find and grab, there is a DB table to indicate status only.
-    oldscrape('http://members.latexlair.com/galleries-heavyrubber.html')
-    oldscrape('http://members.latexlair.com/galleries-solo.html')
-    oldscrape('http://members.latexlair.com/galleries-catsuits.html')
-    oldscrape('http://members.latexlair.com/galleries-blonde.html')
-    oldscrape('http://members.latexlair.com/galleries-events.html')
-    oldscrape('http://members.latexlair.com/galleries-friends.html')
+
 
 
 
 
 
     # This compresses any finished sets to a solid CBZ file for easy cataloging and viewing
-    docompress() # this searches the sets table, not the oldsets table.
+    if herp.CBZ_Compress == 1:
+        docompress() # this searches the sets table, not the oldsets table.
 
 
     # Oldsets aren't compressed by this script, since cover download automation has not yet been implemented.
@@ -634,11 +557,11 @@ def bbparse():
 
     #Check for incomplete sets, print them out
 
-    d.execute("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC")
-    out= d.fetchone()
+    
+    out= myDB.action("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC").fetchone()
     if out[0] != 0:
         print '--The following are incomplete--'
-        for row in c.execute("SELECT * FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC"):
+        for row in myDB.action("SELECT * FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC"):
             #print row
             print "Status: " +row[3] +" Year: "+row[0] + " Title: " + row[1]
         
@@ -647,8 +570,17 @@ def bbparse():
         smartfoldercompletion()
 
 
-    #Close db connection
-    conn.close()
+def getoldsets():
+    init()
+
+    # oldscrape seeks out the old gallery format, sadly cover placement isn't automated.
+    ## This one is a find and grab, there is a DB table to indicate status only.
+    oldscrape('http://members.latexlair.com/galleries-heavyrubber.html')
+    oldscrape('http://members.latexlair.com/galleries-solo.html')
+    oldscrape('http://members.latexlair.com/galleries-catsuits.html')
+    oldscrape('http://members.latexlair.com/galleries-blonde.html')
+    oldscrape('http://members.latexlair.com/galleries-events.html')
+    oldscrape('http://members.latexlair.com/galleries-friends.html')
 
 
 

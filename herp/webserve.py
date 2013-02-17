@@ -3,9 +3,9 @@ import dnld
 
 import os, os.path
 
-import database
+import db
 import herp
-import helpers
+import fileutil
 
 from mako.template import Template
 from mako.lookup import TemplateLookup
@@ -31,18 +31,6 @@ def serve_template(templatename, **kwargs):
 
 
 
-def checkdir(dirtocheck):
-    fullpath =[]
-    for root, _, files in os.walk(dirtocheck):
-        for f in files:
-            tpath = os.path.join(root, f)
-            if 'becool' not in tpath:
-                fullpath.append(tpath)
-
-    if len(fullpath)>0:
-        return fullpath[0]
-    else:
-        return 'None'
 
 
 
@@ -50,52 +38,39 @@ class WebInterface:
     print 'Web INterface called'
     @cherrypy.expose
     def index(self):
-        xd= database.db()
-        d = xd.conn()
-
         output=''
-
-        d.execute("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC")
-        out= d.fetchone()
+        myDB = db.DBConnection()
+        out =myDB.action("SELECT COUNT(*) FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC").fetchone()
         if out[0] != 0:
             #output += '--The following are incomplete--<br>'
-            output += '<table border="1"><center><tr><td>Status</td><td>Year</td><td>Title</td><td>Thumbnail</td></tr></center>'
-            for row in d.execute("SELECT * FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC"):
-                #print row
-                imgpath= checkdir('BB/'+row[0]+'/'+row[1])
-                imgstring=''
-                PATH = os.path.abspath(os.path.join(os.path.dirname(__file__),'..'))
-                if 'None' not in imgpath:
-
-                    #helpers.thumbnail(PATH+'/'+imgpath)
-                    imgstring = '<img src="'+imgpath+'" width=200px >'
-
+            output += '<table id="current"><center><tr><th>Status</th><th>Year</th><th>Title</th><th></th></tr></center>'
+            
+            m=1
+            for row in myDB.action("SELECT * FROM sets WHERE status is not 'cbz' ORDER BY year DESC, title ASC"):
+                
+                #usethe thumbnailer function to make a hover thumbnail for a gallery by year and title.
+                imgstring = fileutil.thumbnailer(row[1])
                 linkvars = 'gallery?year='+row[0]+'&title='+row[1]
                 link = '<a href='+linkvars+'>'+row[1]+'</a>'
-                output += '<tr><td>' +row[3] +'</td><td>'+row[0] + '</td><td>' + link+'</td><td>'+imgstring+'</td><tr>'
-            #output += herp('BB/'+row[0]+'/'+row[1])
+                talt=''
+                if m==1:
+                    talt='class="alt"'
+                    m=0
+                else:
+                    m=1
+                output += '<tr '+talt+' ><td>' +row[3] +'</td><td>'+row[0] + '</td><td>' + link+'</td><td>'+imgstring+'</td><tr>'
 
-            #output += '--------------------------------<br>'
             output += '</table>'
 
-        out2=''
-        out2 += '<table border="1"><center><tr><td>Status</td><td>Year</td><td>Title</td><td>Thumbnail</td></tr></center>'
-        for row in d.execute("SELECT * FROM sets WHERE status is 'cbz' ORDER BY year DESC, title ASC"):
-            #print row
-            imgpath= checkdir('BB/'+row[0]+'/'+row[1])
-            out2 += '<tr><td>' +row[3] +'</td><td>'+row[0] + '</td><td>' + row[1]+'</td><td><img src="'+imgpath+'" width=200px ></td><tr>'
-        #output += herp('BB/'+row[0]+'/'+row[1])
+        
 
-        #output += '--------------------------------<br>'
-        out2 += '</table>'
-        xd.close
-
-        return serve_template(templatename="index.html", status=output, target=out2)
+        return serve_template(templatename="index.html", status=output)
     index.exposed=True
 
     def settings(self):
-
-        return serve_template(templatename="settings.html")
+        myDB = db.DBConnection()
+ 
+        return serve_template(templatename="settings.html", myDB=myDB)
     settings.exposed=True
 
     def gallery(self, year, title):
@@ -108,14 +83,21 @@ class WebInterface:
 
     def doit(self, something):
         print something
+        something = str(something)
         if str(something)=='Check':
             print 'Now starting check'
             dnld.bbparse()
+        if str(something)=='oldscan':
+            print 'Get old'
+            dnld.getoldsets()
+            
         if str(something)=='Shutdown':
             print 'Shutdown Triggered'
             herp.SIGNAL = 'shutdown'
         if str(something)=='Restart':
             herp.SIGNAL = 'restart'
+        if something=='dbthumbs':
+            fileutil.thumbdbbuild()
 
     doit.exposed=True
 
@@ -125,7 +107,7 @@ class WebInterface:
         herp.PASSWORD=passwd
         herp.ROOTDIR=dlroot
         herp.HTTP_PORT=httpport
-        herp.LAUNCH_BROWSER = bool(lbrowser)
+        herp.LAUNCH_BROWSER = int(lbrowser)
         herp.HTTP_USERNAME = httpuser
         herp.HTTP_PASSWORD = httppass
         herp.config_write()

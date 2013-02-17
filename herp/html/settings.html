@@ -1,6 +1,7 @@
 <%include file="base.html"/>
 <%!
 import herp
+from herp import fileutil
 %>
 
 
@@ -9,7 +10,10 @@ import herp
   <ul>
     <li><a href="#tabs-1">Information</a></li>
     <li><a href="#tabs-2">WebServer</a></li>
-    <li><a href="#tabs-3">Extra</a></li>
+    <li><a href="#tabs-4">Database New Style</a></li>
+    <li><a href="#tabs-5">Database Old Style</a></li>
+    <li><a href="#tabs-3">Database Tools</a></li>
+
   </ul>
 
     <div id="tabs-1">
@@ -45,18 +49,41 @@ import herp
     </fieldset>
     </div>
   <div id="tabs-3">
-    <button value="oldscan">Scan Old</button>
-    <button value="dbrebuild">Rebuild Database</button>
-  </div>
-</div>
+    <button value="oldscan" title='You can tell the aplication to scan for sets from the old gallery style here.'>Scan Old</button><br>
+    <button value="dbrebuild" title='This drops all database tables, and rebuilds them. This can take a long time!'>Rebuild Set Database</button><br>
+    <button value="dbthumbs" title='Drops the thumbnail table and rebuils it using the first photo in each set folder.'>Rebuild Thumbnail Database</button><br>
 
-<button  value="test" onclick="dopost('updatesettings','updatesettings');">Commit Changes</button>
+
+
+
+  </div>
+<div id="tabs-4">
+<%
+           
+%>
+<table id="current">
+<tr><th>Year</th><th>Title</th><th>Status</th><th></th></tr>
+% for row in myDB.action("SELECT * FROM sets ORDER BY year DESC, title DESC"):
+    <tr><td>${row[0]}</td><td><a href="gallery?year=${row[0]}&title=${row[1]}">${row[1]}</a></td><td>${row[3]}</td><td>${fileutil.thumbnailer(row[1])}</td></tr>    
+% endfor
+</table>
+</div>
+<div id="tabs-5">
+
+
+<table id="current">
+<tr><th>Year</th><th>Title</th><th>Status</th></tr>
+% for row in myDB.action("SELECT year, title, COUNT(title) FROM oldsets GROUP BY title ORDER BY year DESC, title ASC"):
+    <tr><td>${row[0]}</td><td><a href="gallery?year=${row[0]}&title=${row[1]}">${row[1]}</a></td><td>${row[2]}</td><td>${fileutil.thumbnailer(row[1])}</td></tr>
+
+% endfor
+</table>
+</div>
+</div>
+<br>
+<button  value="test" onclick="dopost('updatesettings','updatesettings');" title='Saves all changes, anything in the webserver section requires a restart!'>Commit Changes</button>
 
 </form>
-
-
-
-
-
 <div id=out></div>
+<br>
 </body>

@@ -15,7 +15,6 @@ else:
 
 
 herp.PROG_DIR = os.path.dirname(herp.FULL_PATH)
-
 herp.DATA_DIR = herp.PROG_DIR
 
 #
@@ -23,8 +22,9 @@ herp.DATA_DIR = herp.PROG_DIR
 
 
 herp.DATA_DIR = os.path.dirname(os.path.abspath(__file__))
-
 herp.LOG_DIR = os.path.join(herp.DATA_DIR, 'logs')
+
+
 
 
 #init herp

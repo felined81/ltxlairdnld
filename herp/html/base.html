@@ -1,15 +1,19 @@
 <%
 import os, os.path
+import herp
 %>
 <head>
     <title>Image Capture UI</title>
-  <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.0/themes/base/jquery-ui.css" />
+  <link rel="stylesheet" href="res/css/jquery-ui.css" />
   <script src="http://code.jquery.com/jquery-1.8.3.js"></script>
-  <script src="http://code.jquery.com/ui/1.10.0/jquery-ui.js"></script>
+    <script src="http://code.jquery.com/ui/1.10.0/jquery-ui.js"></script>
+    <script src="res/jquery.prettyPhoto.js" type="text/javascript" charset="utf-8"></script>    
+    <link rel="stylesheet" href="res/css/prettyPhoto.css" type="text/css" media="screen" title="prettyPhoto main stylesheet" charset="utf-8" />
 
-    <link rel="stylesheet" href="/res/style.css">
+    <link rel="stylesheet" href="res/style.css">
 
     <script>
+
         $(document).ready(function(){
                           $("#submit").click(function(){
                                             $.post("updatesettings",
@@ -27,16 +31,18 @@ import os, os.path
                                                    }
                                                     );
                                             });
-                            $("button").click(function(){
+                            $("button").click(function(self){
                                             $.post("doit",
                                                     {
                                                     something:$(this).attr("value")
                                                     }
                                                     );
                                             });
-                            $('#settings').click(function() {
-                                window.location = "settings";
+                            $('.nav').click(function() {
+                                window.location = $(this).attr("href");
                             });
+                            imagePreview();
+                           
 
                             });
 
@@ -48,6 +54,7 @@ import os, os.path
 			});
          $( "#tabs" ).tabs();
          $( "#radio" ).buttonset();
+         $( document ).tooltip();
 
 	});
 
@@ -63,18 +70,113 @@ $.post(handler, dataString, function(data,status){
    });
 }
 
+this.imagePreview = function(){	
+	/* CONFIG */
+		
+		xOffset = 10;
+		yOffset = 30;
+		
+		// these 2 variable determine popup's distance from the cursor
+		// you might want to adjust to get the right result
+		
+	/* END CONFIG */
+	$("a.preview").hover(function(e){
+		this.t = this.title;
+		this.title = "";	
+		var c = (this.t != "") ? "<br/>" + this.t : "";
+		$("body").append("<p id='preview'><img src='"+ this.href +"' width=${herp.THUMBSIZE} alt='Image preview' />"+ c +"</p>");								 
+		$("#preview")
+			.css("top",(e.pageY - xOffset) + "px")
+			.css("left",(e.pageX + yOffset) + "px")
+			.fadeIn("fast");						
+    },
+	function(){
+		this.title = this.t;	
+		$("#preview").remove();
+    });	
+	$("a.preview").mousemove(function(e){
+		$("#preview")
+			.css("top",(e.pageY - xOffset) + "px")
+			.css("left",(e.pageX + yOffset) + "px");
+	});			
+};
+
+
+
+
+
+
     </script>
+<script type="text/javascript" charset="utf-8">
+
+	$(document).ready(function(){
+		$("a[rel^='prettyPhoto']").prettyPhoto({
+			animation_speed: 'fast', /* fast/slow/normal */
+			slideshow: 5000, /* false OR interval time in ms */
+			autoplay_slideshow: false, /* true/false */
+			opacity: 0.80, /* Value between 0 and 1 */
+			show_title: true, /* true/false */
+                  overlay_gallery: true,
+                  social_tools: '',
+                  default_width: 500,
+                  default_height: 500,
+
+			allow_resize: true, /* Resize the photos bigger than viewport. true/false */
+			theme: 'dark_square' /* light_rounded / dark_rounded / light_square / dark_square / facebook */});
+	});
+</script>
+
+<style>
+
+pre{
+	display:block;
+	font:100% "Courier New", Courier, monospace;
+	padding:10px;
+	border:1px solid #bae2f0;
+	background:#e3f4f9;	
+	margin:.5em 0;
+	overflow:auto;
+	width:800px;
+}
+
+img{border:none;}
+ul,li{
+	margin:0;
+	padding:0;
+}
+li{
+	list-style:none;
+	float:left;
+	display:inline;
+	margin-right:10px;
+}
 
 
+
+/*  */
+
+#preview{
+	position:absolute;
+	border:1px solid #ccc;
+	background:#333;
+	padding:5px;
+	display:none;
+	color:#fff;
+	}
+
+/*  */
+</style>
 </head>
 
 
 
 
 <body>
+<div class="wrapper">
 BB Downloader Web Interface<br>
-<button id="settings" >Settings</button>
-<button value='Check'>Check For New Sets</button>
+<button href="/" class="nav">Home</button>
+<button href=settings class="nav">Settings</button>
+<button value='Check' title='Scans the member page and all of the category pages'>Check For New Sets</button>
 
 <br>
 

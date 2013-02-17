@@ -1,9 +1,7 @@
+<%include file="base.html"/>
 <%
 import os, os.path
-
-    
-
-    
+import herp
     
 %>
 <head>
@@ -15,7 +13,7 @@ import os, os.path
 <%
 
 
-def herp(dirtocheck):
+def merp(dirtocheck):
     fullpath =[]
     for root, _, files in os.walk(dirtocheck):
         for f in files:
@@ -24,15 +22,32 @@ def herp(dirtocheck):
                 fullpath.append(tpath)
     return fullpath
 
+if herp.ROOTDIR == None:
+    herp.ROOTDIR = 'BB/'
 
-dirpath = PATH+'/BB/'+year+'/'+title
+dirpath = herp.ROOTDIR+year+'/'+title
 
-print dirpath
-
-                
+ppapi=[]       
 %>
-% for row in herp(dirpath):
-    <li>${row}</li>
-    
+<table>
+% for row in merp(dirpath):
+  <tr><td><a rel="prettyPhoto[gal]" href="${row}">${row}</a></td></tr>
+    <% ppapi.append("'"+row+"',") %>
 % endfor
+</table>
+
+<% 
+out =''
+for i, object in enumerate(ppapi):
+    out= out+ ppapi[i]  
+%>
+
+<script>
+
+api_gallery=[${out}];
+
+</script>
+<p><button onclick="$.prettyPhoto.open(api_gallery); return false">Launch Gallery</button></p>
+
+
 </body>

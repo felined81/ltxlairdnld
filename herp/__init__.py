@@ -2,8 +2,9 @@ import os, subprocess, sys
 import threading
 import webbrowser
 import cherrypy
-from herp import logger
 
+
+from herp import logger, db
 from lib.configobj import ConfigObj
 from lib.apscheduler.scheduler import Scheduler
 
@@ -13,6 +14,9 @@ ROOTDIR = None
 WEBUSER = None
 WEBPASS = None
 
+
+
+THUMBSIZE = 400
 
 CACHE_DIR = None
 
@@ -29,6 +33,10 @@ FULL_PATH=None
 DATA_DIR = None
 
 VERBOSE = 1
+
+CBZ_Compress = None
+
+
 
 
 CONFIG_FILE = 'herp.ini'
@@ -85,7 +93,7 @@ def check_setting_str(config, cfg_name, item_name, def_val, log=True):
 
 def initialize():
 	with INIT_LOCK:
-		global USERNAME, PASSWORD, ROOTDIR, WEBUSER, WEBPASS, HTTP_PORT, HTTP_USERNAME, HTTP_PASSWORD,LAUNCH_BROWSER, CFG, __INITIALIZED__, DATA_DIR
+		global USERNAME, PASSWORD, ROOTDIR, WEBUSER, WEBPASS, HTTP_PORT, HTTP_USERNAME, HTTP_PASSWORD,LAUNCH_BROWSER, CFG, __INITIALIZED__, DATA_DIR, CBZ_Compress
         #if __INITIALIZED__:
         #    return False
         CheckSection('General')
@@ -102,6 +110,7 @@ def initialize():
         LAUNCH_BROWSER = bool(check_setting_int(CFG, 'General', 'launch_browser', 1))
         ROOTDIR = check_setting_str(CFG, 'General', 'dldir', '')
         LOG_DIR = check_setting_str(CFG, 'General', 'log_dir', '')
+        CBZ_Compress = bool(check_setting_int(CFG, 'General', 'makecbz',0))
 
 
 
@@ -115,7 +124,10 @@ def initialize():
                      logger.info( 'Unable to create the log directory. Logging to screen only.')
 
         logger.lldl_log.initLogger(verbose=VERBOSE)
-
+       
+       
+       
+       
         __INITIALIZED__ = True
         return True
 
@@ -123,7 +135,7 @@ def config_write():
 
     logger.info('Writing Config')
     new_config = ConfigObj()
-
+    
     new_config.filename = CONFIG_FILE
 
     new_config['General'] = {}
@@ -133,10 +145,21 @@ def config_write():
     new_config['General']['site_username'] = USERNAME
     new_config['General']['site_password'] = PASSWORD
     new_config['General']['dldir'] = ROOTDIR
-    new_config['General']['launch_browser'] = LAUNCH_BROWSER
+    new_config['General']['launch_browser'] = int(LAUNCH_BROWSER)
+    new_config['General']['makecbz'] = int(CBZ_Compress)
+
+
 
 	#Write Config
     new_config.write()
+
+def setupdb():
+    #Make sure our tables exist
+    ledb=db.DBConnection()
+    ledb.action("CREATE TABLE IF NOT EXISTS sets (year text, title text primary key not null, basefolder text, status text)")
+    ledb.action("CREATE TABLE IF NOT EXISTS oldsets (year text, title text, folder text, status text)")
+        
+
 
 def launch_browser(host, port, root):
 
@@ -157,7 +180,8 @@ def start():
     if __INITIALIZED__:
             import dnld
             # Schedule parse action
-            SCHED.add_interval_job(dnld.bbparse, hours=48)
+            SCHED.add_interval_job(dnld.bbparse, hours=24)
+            #SCHED.add_interval_job(dnld.bbparse, minutes=5)
             SCHED.start()
             started = True
 
@@ -165,7 +189,7 @@ def shutdown(restart=False, update=False):
 	#write Configuration
     cherrypy.engine.exit()
     config_write()
-
+    SCHED.shutdown(wait=False)
 
     if not restart and not update:
          logger.info('Now Exiting')
