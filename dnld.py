@@ -120,8 +120,8 @@ class ThreadUrl(threading.Thread):
                 os.rename(fname+'-temp', fname)
                 end = time.clock()
                 kilobytes = os.path.getsize(fname)/1024
-                print indent(1)+url
-                print indent(2)+'Downloaded '+str(kilobytes) + 'KB in '+ str(end-start)+' seconds Rate:'+   str(kilobytes/(end-start))+'KBps'
+                logger.info(indent(1)+url)
+                logger.info( indent(2)+'Downloaded '+str(kilobytes) + 'KB in '+ str(end-start)+' seconds Rate:'+   str(kilobytes/(end-start))+'KBps')
             
             
             
@@ -144,7 +144,7 @@ def dowloadfolder(foldname, prefix=''):
     
     
     #get images from page####
-    print 'Current Album: '+currentalbum+' Part: ' +albumpart+' Year: '+year
+    logger.info('Current Album: '+currentalbum+' Part: ' +albumpart+' Year: '+year)
     #print currenthtml
     splita= currenthtml.split('<a href=')
     for index, object in enumerate(splita):
@@ -500,7 +500,7 @@ def getcovers(url):
 
 
 ############################ Start of Process ############################
-def bbparse():
+def bbparse(cat=0):
     init()
     #Start 5 worker threads for downloading#
     for i in range(5):
@@ -516,14 +516,14 @@ def bbparse():
 
 
 
-
-    ## catparse works for the bulk category pages format is (url, debug), only new galleries
-    catparse('http://members.latexlair.com/galleries-heavyrubber.html')
-    catparse('http://members.latexlair.com/galleries-solo.html')
-    catparse('http://members.latexlair.com/galleries-catsuits.html')
-    catparse('http://members.latexlair.com/galleries-blonde.html')
-    catparse('http://members.latexlair.com/galleries-events.html')
-    catparse('http://members.latexlair.com/galleries-friends.html')
+    if cat==1:
+        ## catparse works for the bulk category pages format is (url, debug), only new galleries
+        catparse('http://members.latexlair.com/galleries-heavyrubber.html')
+        catparse('http://members.latexlair.com/galleries-solo.html')
+        catparse('http://members.latexlair.com/galleries-catsuits.html')
+        catparse('http://members.latexlair.com/galleries-blonde.html')
+        catparse('http://members.latexlair.com/galleries-events.html')
+        catparse('http://members.latexlair.com/galleries-friends.html')
 
 
     # This parses searches added to the database, and pulls down photos

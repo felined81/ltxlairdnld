@@ -98,6 +98,8 @@ class WebInterface:
             herp.SIGNAL = 'restart'
         if something=='dbthumbs':
             fileutil.thumbdbbuild()
+        if something=='catscan':
+            dnld.bbparse(1)
 
     doit.exposed=True
 
