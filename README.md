@@ -2,14 +2,13 @@ ltxlairdnld
 ===========
 
 To run from terminal
-python downloader.py
+python start.py
 
 
-type in your username and pw
+Set username, password, and dlroot in settings, save with commit changes.
 
-Tell the script where you want to download the files to
-
-The script adds these values to its database data.db
-
+Click "Check for new sets", be patient as it downloads all of the new galleries for you.
 
 Tested on python 2.7 on OSX 10.7
+
+
